@@ -1,0 +1,13 @@
+fileFormatVersion: 2
+guid: 240f4c307a09c4889b37752fbff2137a
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - whiteTilePrefab: {fileID: 4702964883884272835, guid: 03072242c30664c2aa49de16d0885c93, type: 3}
+  - blackTilePrefab: {fileID: 5401803245104042640, guid: e969f172561534fc285042bc26a78864, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

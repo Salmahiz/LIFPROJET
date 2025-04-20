@@ -1,0 +1,303 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+public class AIControllerLevel3 : MonoBehaviour
+{
+    public static AIControllerLevel3 Instance; // Singleton
+    private int maxDepth = 2; // Profondeur de Minimax
+    private Vector3 originalPosition;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Debug.LogWarning("AIController existe déjà ! Destruction de l'instance en double.");
+            Destroy(gameObject);
+        }
+    }
+
+   public void PlayAITurn()
+    {
+        if (GameManager.IsWhiteTurn) return; // L'IA joue seulement avec les noirs
+
+        DeselectAllPieces(); // Désélectionner toutes les pièces avant de jouer
+
+        Move bestMove = FindBestMove(); // Trouver le meilleur coup
+        if (bestMove != null)
+        {
+            ExecuteMove(bestMove); // Exécuter un seul mouvement
+            DeselectAllPieces();
+            GameManager.SwitchTurn(); // Changer de tour après un seul mouvement
+        }
+        else
+        {
+            Debug.Log("L'IA ne peut pas bouger !");
+        }
+    }
+
+
+    private Move FindBestMove()
+    {
+        List<PieceController> aiPieces = GetAIPieces();
+        Move bestMove = null;
+        float bestValue = float.NegativeInfinity;
+
+        foreach (PieceController piece in aiPieces)
+        {
+            List<Vector3> validMoves = GetValidMoves(piece);
+            foreach (Vector3 move in validMoves)
+            {
+                // Simuler le mouvement
+                PieceController capturedPiece = SimulateMove(piece, move);
+
+                // Calculer la valeur du mouvement avec Minimax
+                float moveValue = Minimax(maxDepth, float.NegativeInfinity, float.PositiveInfinity, false);
+
+                // Annuler le mouvement simulé
+                UndoMove(piece, move, capturedPiece);
+
+                // Mettre à jour le meilleur mouvement
+                if (moveValue > bestValue)
+                {
+                    bestValue = moveValue;
+                    bestMove = new Move(piece, move);
+                }
+            }
+        }
+
+        return bestMove; // L'IA ne doit retourner qu'un seul mouvement
+    }
+
+
+    private float Minimax(int depth, float alpha, float beta, bool isMaximizingPlayer)
+    {
+        if (depth == 0 || IsGameOver())
+        {
+            return EvaluateBoard();
+        }
+
+        if (isMaximizingPlayer)
+        {
+            float maxEval = float.NegativeInfinity;
+            List<PieceController> aiPieces = GetAIPieces();
+
+            foreach (PieceController piece in aiPieces)
+            {
+                List<Vector3> validMoves = GetValidMoves(piece);
+                foreach (Vector3 move in validMoves)
+                {
+                    PieceController capturedPiece = SimulateMove(piece, move);
+                    float eval = Minimax(depth - 1, alpha, beta, false);
+                    UndoMove(piece, move, capturedPiece);
+
+                    maxEval = Mathf.Max(maxEval, eval);
+                    alpha = Mathf.Max(alpha, eval);
+
+                    if (beta <= alpha)
+                    {
+                        break; // Élagage alpha-bêta
+                    }
+                }
+            }
+            return maxEval;
+        }
+        else
+        {
+            float minEval = float.PositiveInfinity;
+            List<PieceController> opponentPieces = GetOpponentPieces();
+
+            foreach (PieceController piece in opponentPieces)
+            {
+                List<Vector3> validMoves = GetValidMoves(piece);
+                foreach (Vector3 move in validMoves)
+                {
+                    PieceController capturedPiece = SimulateMove(piece, move);
+                    float eval = Minimax(depth - 1, alpha, beta, true);
+                    UndoMove(piece, move, capturedPiece);
+
+                    minEval = Mathf.Min(minEval, eval);
+                    beta = Mathf.Min(beta, eval);
+
+                    if (beta <= alpha)
+                    {
+                        break; // Élagage alpha-bêta
+                    }
+                }
+            }
+            return minEval;
+        }
+    }
+
+    private float EvaluateBoard()
+    {
+        float score = 0;
+        PieceController[] allPieces = FindObjectsOfType<PieceController>();
+
+        foreach (PieceController piece in allPieces)
+        {
+            if (piece.isPlayerWhite)
+            {
+                score -= EvaluatePiece(piece); // Pièces blanches négatives
+            }
+            else
+            {
+                score += EvaluatePiece(piece); // Pièces noires positives
+            }
+        }
+
+        return score;
+    }
+
+    private float EvaluatePiece(PieceController piece)
+    {
+        float value = piece switch
+        {
+            KingController => 10000,
+            QueenController => 9,
+            RookController => 5,
+            BishopController => 3.5f,
+            KnightController => 3,
+            PawnController => 1,
+            _ => 0
+        };
+
+        value += EvaluatePosition(piece.transform.position);
+        return value;
+    }
+
+
+    private float EvaluatePosition(Vector3 position)
+    {
+        float centerX = Mathf.Abs(position.x - 3.5f);
+        float centerZ = Mathf.Abs(position.z - 3.5f);
+        return 1 - (centerX + centerZ) / 7f;
+    }
+
+    private List<PieceController> GetAIPieces()
+    {
+        List<PieceController> pieces = new List<PieceController>();
+        PieceController[] allPieces = FindObjectsOfType<PieceController>();
+
+        foreach (PieceController piece in allPieces)
+        {
+            if (!piece.isPlayerWhite) // Sélectionne les Noirs
+            {
+                pieces.Add(piece);
+            }
+        }
+
+        return pieces;
+    }
+
+    private List<PieceController> GetOpponentPieces()
+    {
+        List<PieceController> opponentPieces = new List<PieceController>();
+        PieceController[] allPieces = FindObjectsOfType<PieceController>();
+
+        foreach (PieceController piece in allPieces)
+        {
+            if (piece.isPlayerWhite) // Sélectionne les Blancs
+            {
+                opponentPieces.Add(piece);
+            }
+        }
+
+        return opponentPieces;
+    }
+
+    private List<Vector3> GetValidMoves(PieceController piece)
+    {
+        List<Vector3> validMoves = new List<Vector3>();
+
+        for (int x = -7; x <= 7; x++)
+        {
+            for (int z = -7; z <= 7; z++)
+            {
+                Vector3 testPosition = new Vector3(piece.transform.position.x + x, piece.transform.position.y, piece.transform.position.z + z);
+
+                if (IsTileValid(testPosition) && piece.IsValidMove(testPosition))
+                {
+                    validMoves.Add(testPosition);
+                }
+            }
+        }
+        return validMoves;
+    }
+
+    private bool IsTileValid(Vector3 position)
+    {
+        RaycastHit hit;
+        if (Physics.Raycast(position + Vector3.up * 5, Vector3.down, out hit))
+        {
+            return hit.collider.CompareTag("Tiles");
+        }
+        return false;
+    }
+
+    private void ExecuteMove(Move move)
+    {
+        move.Piece.transform.position = move.TargetPosition;
+    }
+
+    private bool IsGameOver()
+    {
+        return false; // Ajoute une logique pour l'échec et mat
+    }
+
+    private PieceController SimulateMove(PieceController piece, Vector3 targetPosition)
+    {
+        originalPosition = piece.transform.position;
+
+        PieceController capturedPiece = null;
+
+        Collider[] colliders = Physics.OverlapSphere(targetPosition, 0.3f);
+        foreach (Collider collider in colliders)
+        {
+            PieceController otherPiece = collider.GetComponent<PieceController>();
+            if (otherPiece != null && otherPiece != piece && otherPiece.isPlayerWhite != piece.isPlayerWhite)
+            {
+                capturedPiece = otherPiece;
+                otherPiece.gameObject.SetActive(false); // Cache temporairement
+                break;
+            }
+        }
+
+        piece.transform.position = targetPosition;
+        return capturedPiece;
+    }
+
+    private void UndoMove(PieceController piece, Vector3 targetPosition, PieceController capturedPiece)
+    {
+        piece.transform.position = originalPosition;
+
+        if (capturedPiece != null)
+        {
+            capturedPiece.gameObject.SetActive(true);
+        }
+    }
+
+
+    private class Move
+    {
+        public PieceController Piece { get; }
+        public Vector3 TargetPosition { get; }
+
+        public Move(PieceController piece, Vector3 targetPosition)
+        {
+            Piece = piece;
+            TargetPosition = targetPosition;
+        }
+    }
+
+    private void DeselectAllPieces()
+    {
+        foreach (PieceController piece in FindObjectsOfType<PieceController>())
+        {
+            piece.isSelected = false;
+        }
+    }
+}

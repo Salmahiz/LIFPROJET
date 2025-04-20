@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 49f1b2a095d7cc74e8dd6f00fefa1e9c
+timeCreated: 1522933852
+licenseType: Store
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 101246
+  packageName: Table with chairs x3 Free
+  packageVersion: 1.1
+  assetPath: Assets/Scenes/scene01/Kitchen table with chair/Prefabs/PlateWithFruit.prefab
+  uploadId: 239857
