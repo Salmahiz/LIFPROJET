@@ -1,9 +1,10 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 public class BishopController : PieceController
 {
     public float moveSpeed = 5f; // Vitesse de déplacement
-    //private bool isSelected = false; // État de sélection
     private Vector3 targetPosition; // Position de destination
     private bool isMoving = false; // Si le fou est en train de se déplacer
     private PieceController pieceToCapture = null; // Pièce à capturer
@@ -39,119 +40,72 @@ public class BishopController : PieceController
                 {
                     Vector3 hitPosition = hit.collider.transform.position;
 
-                    // Vérifie si le mouvement est valide pour le fou
-                    if (IsValidMove(hitPosition))
+                    Vector3 matchedMove = GetAvailableMoves().FirstOrDefault(pos => Vector3.Distance(pos, hitPosition) < 0.1f);
+
+                    bool moveFound = GetAvailableMoves().Any(pos => Vector3.Distance(pos, hitPosition) < 0.1f);
+
+                    if (moveFound)
                     {
-                        targetPosition = hitPosition; // Met à jour la position cible
-                        isMoving = true; // Active le mouvement
+                        targetPosition = matchedMove;
+                        isMoving = true;
                     }
                     else
                     {
                         Debug.Log("Déplacement invalide.");
                     }
+
                 }
             }
         }
     }
 
-    public override bool IsValidMove(Vector3 hitPosition)
+
+
+    public override List<Vector3> GetAvailableMoves()
     {
-        Vector3 currentPosition = transform.position;
+        List<Vector3> moves = new List<Vector3>();
+        ChessBoardGenerator board = GameObject.FindObjectOfType<ChessBoardGenerator>();
+        (int x, int z) = GetBoardIndex();
 
-        // Convertir en entiers pour éviter les imprécisions
-        int currentX = Mathf.RoundToInt(currentPosition.x);
-        int currentZ = Mathf.RoundToInt(currentPosition.z);
-        int targetX = Mathf.RoundToInt(hitPosition.x);
-        int targetZ = Mathf.RoundToInt(hitPosition.z);
-
-        // Le fou se déplace en diagonale : |X - targetX| == |Z - targetZ|
-        if (Mathf.Abs(targetX - currentX) == Mathf.Abs(targetZ - currentZ))
+        Vector2Int[] directions = new Vector2Int[]
         {
-            //verifie si le chemin ets dégagé
-            if (IsPathClear(currentPosition, hitPosition))
+            new Vector2Int(1, 1), new Vector2Int(-1, 1),
+            new Vector2Int(1, -1), new Vector2Int(-1, -1)
+        };
+
+        foreach (var dir in directions)
+        {
+            int step = 1;
+            while (true)
             {
-                if (IsDestinationFree(hitPosition))
+                int newX = x + dir.x * step;
+                int newZ = z + dir.y * step;
+
+                if (!board.IsInBoard(newX, newZ)) break;
+
+                Vector3 newPos = BoardToWorldPosition(newX, newZ);
+
+                if (IsOccupiedByAlly(newPos)) break;
+
+                moves.Add(newPos);
+
+                Collider[] colliders = Physics.OverlapSphere(newPos, 0.3f);
+                if (colliders.Any(c =>
+                    c.GetComponent<PieceController>() is PieceController pc &&
+                    pc.isPlayerWhite != this.isPlayerWhite))
                 {
-                    return true;
+                    break;
                 }
-            }
-            Debug.Log("La case de destination ou une case sur le parcours est occupée par une pièce.");
-            return false;
-        }
 
-        Debug.Log("Déplacement impossible.");
-        return false; // Le mouvement n'est pas valide
-    }
-
-    // Vérifie si le chemin entre la position actuelle et la position cible est dégagé
-    bool IsPathClear(Vector3 currentPosition, Vector3 targetPosition)
-    {
-        int currentX = Mathf.RoundToInt(currentPosition.x);
-        int currentZ = Mathf.RoundToInt(currentPosition.z);
-        int targetX = Mathf.RoundToInt(targetPosition.x);
-        int targetZ = Mathf.RoundToInt(targetPosition.z);
-
-        // Vérifie que le déplacement est en diagonale
-        if (Mathf.Abs(targetX - currentX) != Mathf.Abs(targetZ - currentZ))
-        {
-            return false; // Mouvement non diagonal, donc invalide
-        }
-
-        // Détermine la direction du déplacement (+1 ou -1)
-        int dx = (targetX > currentX) ? 1 : -1;
-        int dz = (targetZ > currentZ) ? 1 : -1;
-
-        // On commence juste après la position actuelle
-        int x = currentX + dx;
-        int z = currentZ + dz;
-
-        while (x != targetX || z != targetZ)
-        {
-            Vector3 checkPosition = new Vector3(x, currentPosition.y, z);
-            Collider[] colliders = Physics.OverlapSphere(checkPosition, 0.3f); // Augmente le rayon
-
-            foreach (Collider collider in colliders)
-            {
-                if (collider.TryGetComponent(out PieceController piece))
-                {
-                    return false;
-                }
-            }
-
-            x += dx;
-            z += dz;
-        }
-
-        // Vérifie la dernière case (cible) pour une capture éventuelle
-        return true;
-    }
-
-    bool IsDestinationFree(Vector3 targetPosition)
-    {
-        Collider[] finalColliders = Physics.OverlapSphere(targetPosition, 0.1f);
-        foreach (Collider collider in finalColliders)
-        {
-            PieceController piece = collider.GetComponent<PieceController>();
-            if (piece != null)
-            {
-                // Si la pièce est alliée, la destination est bloquée
-                if (piece.isPlayerWhite == this.isPlayerWhite)
-                {
-                    return false; // Impossible d'atterrir sur une pièce alliée
-                }
-                // Si la pièce est ennemie, on peut la capturer
-                if (piece.isPlayerWhite != this.isPlayerWhite)
-                {
-                    // Vous pouvez gérer la capture ici si nécessaire
-                    // Piece ennemie détectée pour capture, mais ne pas empêcher le mouvement
-                    pieceToCapture = piece;
-                    Debug.Log("Pièce ennemie détectée pour capture : " + piece.gameObject.name);
-                }
+                step++;
             }
         }
 
-        return true; // Déplacement valide, qu'il y ait ou non une pièce ennemie
+        return moves;
     }
+
+
+
 
     void MoveBishop()
     {
@@ -162,14 +116,22 @@ public class BishopController : PieceController
             isMoving = false;
             Debug.Log(gameObject.name + " a atteint sa destination.");
 
+            Collider[] colliders = Physics.OverlapSphere(targetPosition, 0.3f);
+
             // Vérifie s'il y a une pièce ennemie à capturer (après avoir atteint la destination)
-            if (pieceToCapture != null)
+            foreach (Collider collider in colliders)
             {
-                Destroy(pieceToCapture.gameObject); // Capture la pièce ennemie
-                pieceToCapture = null; // Réinitialise la pièce capturée
+                PieceController piece = collider.GetComponent<PieceController>();
+                if (piece != null && piece.isPlayerWhite != this.isPlayerWhite)
+                {
+                    pieceToCapture = piece;
+                    Debug.Log("Pièce ennemie capturée : " + piece.gameObject.name);
+                    Destroy(piece.gameObject);
+                    break;
+                }
             }
 
-            DeselectPiece();
+            DeselectCase();
             GameManager.SwitchTurn();
         }
     }

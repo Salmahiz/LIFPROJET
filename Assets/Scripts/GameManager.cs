@@ -17,7 +17,7 @@ public class GameManager : MonoBehaviour
     public float positionSpeed = 2f; // Vitesse de déplacement
     public static bool IsPvPMode = false; // Par défaut, IA activée
     public static int level = 0; // par defaut, le level de l'ia est 1
-
+    public static bool IsPromotionActive = false;
 
     
 
@@ -29,16 +29,57 @@ public class GameManager : MonoBehaviour
     private Vector3 blackRotation = new Vector3(60, 180, 0);
     public static bool isGameOver = false;
 
-    public static void DeclareCheckmate(bool whiteWon)
+    public GameObject promotionUI;
+
+    public static GameManager instance;
+
+    /*private void Awake()
+    {
+        instance = this;
+        promotionUI.SetActive(false); // Cache au début
+    }*/
+
+
+    public void DeclareCheckmate(bool whiteWon)
     {
         isGameOver = true;
         Debug.Log(whiteWon ? "Échec et mat ! Les blancs gagnent." : "Échec et mat ! Les noirs gagnent.");
         // Affichage UI ici
+        // Affiche un petit délai pour lire le message dans la console
+        GameManager instance = FindFirstObjectByType<GameManager>();
+        if (instance != null)
+        {
+            instance.StartCoroutine(instance.ReturnToMenuAfterDelay(2f));
+        }
     }
+    void Update()
+    {   //quand on clique sur M on retourne sur le menu
+        if (Input.GetKeyDown(KeyCode.M))
+        {
+            Debug.Log("Test manuel : retour au menu");
+            SceneManager.LoadScene("Main Menu");
+        }
+    }
+
 
     public static void SwitchTurn()
     {
         IsWhiteTurn = !IsWhiteTurn;
+        // Nouvelle vérification d'échec et mat juste après changement de tour
+        Debug.Log("Test d’échec et mat...");
+        if (KingController.IsCheckmate(IsWhiteTurn))
+        {
+            Debug.Log("ÉCHEC ET MAT détecté !");
+            GameManager gameMgr = FindFirstObjectByType<GameManager>();
+            if (gameMgr != null)
+            {
+                gameMgr.DeclareCheckmate(!IsWhiteTurn);
+            }
+
+            // l’autre joueur gagne
+            return;
+        }
+
 
         if (!IsWhiteTurn && !IsPvPMode && level == 1) // Si c'est le tour des Noirs et qu'on n'est pas en PvP, l'IA de niveau 1 joue
         {
@@ -80,9 +121,6 @@ public class GameManager : MonoBehaviour
             Debug.Log(IsWhiteTurn ? "Les Blancs sont en échec !" : "Les Noirs sont en échec !");
         }
         
-        
-
-        
     }
 
     //logique pour deselectionner une piece si une autre est selectionnée
@@ -90,6 +128,7 @@ public class GameManager : MonoBehaviour
     {
         if (selectedPiece != null)
         {
+            selectedPiece.ResetColors();
             // Si une pièce est déjà sélectionnée, désélectionne-la
             selectedPiece.DeselectPiece();
         }
@@ -148,4 +187,11 @@ public class GameManager : MonoBehaviour
 
         return isInCheck;
     }
+
+    public IEnumerator ReturnToMenuAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        SceneManager.LoadScene("Main Menu");
+    }
+
 }

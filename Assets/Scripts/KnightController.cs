@@ -1,9 +1,10 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 public class KnightController : PieceController
 {
     public float moveSpeed = 5f; // Vitesse de déplacement
-    //private bool isSelected = false; // État de sélection
     private Vector3 targetPosition; // Position de destination
     private bool isMoving = false; // Si le cavalier est en train de se déplacer
     private PieceController pieceToCapture = null; // Pièce à capturer
@@ -39,10 +40,15 @@ public class KnightController : PieceController
                 {
                     Vector3 hitPosition = hit.collider.transform.position;
 
+                    List<Vector3> possibleMoves = GetAvailableMoves();
+                    Vector3 matchedMove = possibleMoves.FirstOrDefault(pos => Vector3.Distance(pos, hitPosition) < 0.1f);
+
+                    bool moveFound = possibleMoves.Any(pos => Vector3.Distance(pos, hitPosition) < 0.1f);
+
                     // Vérifie si le mouvement est valide pour le cavalier
-                    if (IsValidMove(hitPosition))
+                    if (moveFound)
                     {
-                        targetPosition = hitPosition; // Met à jour la position cible
+                        targetPosition = matchedMove; // Met à jour la position cible
                         isMoving = true; // Active le mouvement
                     }
                     else
@@ -54,40 +60,38 @@ public class KnightController : PieceController
         }
     }
 
-    // Vérifie si le mouvement est valide pour le cavalier
-    public override bool IsValidMove(Vector3 hitPosition)
+    public override List<Vector3> GetAvailableMoves()
     {
-        Vector3 currentPosition = transform.position;
+        List<Vector3> moves = new List<Vector3>();
+        ChessBoardGenerator board = GameObject.FindObjectOfType<ChessBoardGenerator>();
+        (int x, int z) = GetBoardIndex();
 
-        // Convertir en entiers pour éviter les imprécisions
-        int currentX = Mathf.RoundToInt(currentPosition.x);
-        int currentZ = Mathf.RoundToInt(currentPosition.z);
-        int targetX = Mathf.RoundToInt(hitPosition.x);
-        int targetZ = Mathf.RoundToInt(hitPosition.z);
-
-        // Le cavalier se déplace en "L" : 2 cases dans une direction, 1 dans l'autre
-        int dx = Mathf.Abs(targetX - currentX);
-        int dz = Mathf.Abs(targetZ - currentZ);
-
-        if ((dx == 2 && dz == 1) || (dx == 1 && dz == 2))
+        Vector2Int[] offsets = new Vector2Int[]
         {
-            // Vérifie si la case cible est occupée par une pièce alliée
-            Collider[] colliders = Physics.OverlapSphere(hitPosition, 0.3f); // Utilise un rayon pour vérifier la collision
+            new Vector2Int(2, 1), new Vector2Int(2, -1),
+            new Vector2Int(-2, 1), new Vector2Int(-2, -1),
+            new Vector2Int(1, 2), new Vector2Int(-1, 2),
+            new Vector2Int(1, -2), new Vector2Int(-1, -2)
+        };
 
-            foreach (Collider collider in colliders)
+        foreach (var offset in offsets)
+        {
+            int newX = x + offset.x;
+            int newZ = z + offset.y;
+
+            if (!board.IsInBoard(newX, newZ)) continue;
+
+            Vector3 newPos = BoardToWorldPosition(newX, newZ);
+
+            if (!IsOccupiedByAlly(newPos))
             {
-                PieceController piece = collider.GetComponent<PieceController>();
-                if (piece != null && piece.isPlayerWhite == this.isPlayerWhite)
-                {
-                    return false; // Si une pièce alliée est présente sur la cible, le déplacement est invalide
-                }
+                moves.Add(newPos);
             }
-
-            return true; // Le mouvement est valide
         }
 
-        return false; // Le mouvement ne correspond pas à un "L"
+        return moves;
     }
+
 
     // Déplace le cavalier vers la position cible
     void MoveKnight()
@@ -113,7 +117,7 @@ public class KnightController : PieceController
                 }
             }
 
-            DeselectPiece();
+            DeselectCase();
             GameManager.SwitchTurn();
         }
     }

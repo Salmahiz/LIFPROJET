@@ -56,5 +56,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "LIFPROJET02.sln"
+    "dotnet.defaultSolution": "LIFPROJET.sln"
 }

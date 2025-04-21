@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 public class KingController : PieceController
 {
@@ -20,11 +22,14 @@ public class KingController : PieceController
         {   
             MoveKing();
         }
+        
 
         // Vérifie si le roi peut encore bouger, sinon termine la partie
         if (isPlayerWhite == GameManager.IsWhiteTurn && IsCheckmate(isPlayerWhite))
         {
-            EndGame("Perdu ! Le roi ne peut plus se déplacer.");
+            //EndGame("Perdu ! Le roi ne peut plus se déplacer.");
+            GameManager.FindFirstObjectByType<GameManager>()?.DeclareCheckmate(!isPlayerWhite);
+
         }
 
         
@@ -32,7 +37,7 @@ public class KingController : PieceController
 
     // Gère le clic souris pour déplacer le roi
     void HandleMouseClick()
-    {   Debug.Log("HandleMouseClick appelé pour le roi");
+    {   //Debug.Log("HandleMouseClick appelé pour le roi");
         if (Input.GetMouseButtonDown(0)) // Si clic gauche
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -46,10 +51,15 @@ public class KingController : PieceController
                 {
                     Vector3 hitPosition = hit.collider.transform.position;
 
+                    List<Vector3> possibleMoves = GetAvailableMoves();
+                    Vector3 matchedMove = possibleMoves.FirstOrDefault(pos => Vector3.Distance(pos, hitPosition) < 0.1f);
+                    bool moveFound = possibleMoves.Any(pos => Vector3.Distance(pos, hitPosition) < 0.1f);
+
+
                     // Vérifie si le mouvement est valide pour le roi
-                    if (IsValidMove(hitPosition))
+                    if (moveFound)
                     {
-                        targetPosition = hitPosition; // Met à jour la position cible
+                        targetPosition = matchedMove; // Met à jour la position cible
                         isMoving = true; // Active le mouvement
                     }
                     else
@@ -61,43 +71,45 @@ public class KingController : PieceController
         }
     }
 
-    // Vérifie si le mouvement est valide pour le roi
-    public override bool IsValidMove(Vector3 hitPosition)
+
+    public override List<Vector3> GetAvailableMoves()
     {
-        Vector3 currentPosition = transform.position;
-        int currentX = Mathf.RoundToInt(currentPosition.x);
-        int currentZ = Mathf.RoundToInt(currentPosition.z);
-        int targetX = Mathf.RoundToInt(hitPosition.x);
-        int targetZ = Mathf.RoundToInt(hitPosition.z);
+        List<Vector3> moves = new List<Vector3>();
+        (int x, int z) = GetBoardIndex();
+        ChessBoardGenerator board = GameObject.FindObjectOfType<ChessBoardGenerator>();
 
-        int dx = Mathf.Abs(targetX - currentX);
-        int dz = Mathf.Abs(targetZ - currentZ);
-
-        if (dx <= 1 && dz <= 1) // Le roi peut se déplacer d'une case
+        for (int dx = -1; dx <= 1; dx++)
         {
-            Collider[] colliders = Physics.OverlapSphere(hitPosition, 0.3f);
-
-            foreach (Collider collider in colliders)
+            for (int dz = -1; dz <= 1; dz++)
             {
-                PieceController piece = collider.GetComponent<PieceController>();
-                if (piece != null)
-                {
-                    if (piece.isPlayerWhite == this.isPlayerWhite)
-                    {
-                        return false; // Impossible de capturer une pièce alliée
-                    }
+                if (dx == 0 && dz == 0) continue;
 
-                    if (piece is KingController)
-                    {
-                        Debug.Log("Le roi ne peut pas capturer l'autre roi !");
-                        return false; // Interdiction de capturer le roi ennemi
-                    }
+                int newX = x + dx;
+                int newZ = z + dz;
+
+                if (!board.IsInBoard(newX, newZ)) continue;
+
+                Vector3 newPos = BoardToWorldPosition(newX, newZ);
+
+                Collider[] colliders = Physics.OverlapSphere(newPos, 0.3f);
+
+                bool isBlocked = colliders.Any(c =>
+                {
+                    PieceController pc = c.GetComponent<PieceController>();
+                    return pc != null && (
+                        pc.isPlayerWhite == this.isPlayerWhite || // allié
+                        pc is KingController                    // autre roi
+                    );
+                });
+
+                if (!isBlocked)
+                {
+                    moves.Add(newPos);
                 }
             }
-            return true; // Déplacement valide
         }
 
-        return false;
+        return moves;
     }
 
 
@@ -130,33 +142,9 @@ public class KingController : PieceController
                 }
             }
 
-            DeselectPiece();
+            DeselectCase();
             GameManager.SwitchTurn();
         }
-    }
-
-
-
-    // Vérifie si le roi peut encore bouger
-    private bool CanKingMove()
-    {
-        Vector3 currentPosition = transform.position;
-        
-        // Check les 8 possible movements du roi
-        for (int x = -1; x <= 1; x++)
-        {
-            for (int z = -1; z <= 1; z++)
-            {
-                if (x == 0 && z == 0) continue; // Skip position
-                
-                Vector3 testPos = currentPosition + new Vector3(x, 0, z);
-                if (IsValidMove(testPos))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
 
@@ -191,10 +179,14 @@ public class KingController : PieceController
             if (piece.isPlayerWhite != this.isPlayerWhite)
             {
                 // Si une pièce ennemie peut se déplacer vers le roi, alors le roi est en échec
-                if (piece.IsValidMove(kingPosition))
+                if (piece.GetAvailableMoves().Any(p => Vector3Int.RoundToInt(p) == Vector3Int.RoundToInt(kingPosition)))
                 {
                     Debug.Log("Le roi est en échec par " + piece.gameObject.name);
                     return true;
+                }
+                else
+                {
+                    //Debug.Log(piece.name + " ne menace pas le roi.");
                 }
             }
         }
@@ -217,35 +209,46 @@ public class KingController : PieceController
 
 
     public static bool IsCheckmate(bool isWhite)
-{
-    KingController king = GameManager.GetKing(isWhite);
-    if (king == null || !king.IsInCheck()) return false;
-
-    PieceController[] pieces = FindObjectsOfType<PieceController>();
-    
-    foreach (PieceController piece in pieces)
     {
-        if (piece.isPlayerWhite != isWhite) continue;
-        
-        // Limiter aux cases autour de la pièce plutôt que tout l'échiquier
-        for (int x = -1; x <= 1; x++)
-        {
-            for (int z = -1; z <= 1; z++)
-            {
-                Vector3 target = piece.transform.position + new Vector3(x, 0, z);
-                if (!piece.IsValidMove(target)) continue;
+        KingController king = GameManager.GetKing(isWhite);
+        if (king == null) return true; // Roi déjà capturé = checkmate direct
+        if (!king.IsInCheck()) Debug.Log("Le roi n'est PAS en échec."); return false;
 
-                // Simulation du mouvement
-                Vector3 originalPos = piece.transform.position;
-                piece.transform.position = target;
-                
+
+        PieceController[] pieces = FindObjectsOfType<PieceController>();
+
+        foreach (PieceController piece in pieces)
+        {
+            if (piece.isPlayerWhite != isWhite) continue;
+
+            Vector3 originalPosition = piece.transform.position;
+
+            foreach (Vector3 move in piece.GetAvailableMoves())
+            {
+                // Sauvegarde des éventuelles pièces à capturer
+                Collider[] beforeMove = Physics.OverlapSphere(move, 0.3f);
+                PieceController capturedPiece = beforeMove
+                    .Select(c => c.GetComponent<PieceController>())
+                    .FirstOrDefault(p => p != null && p.isPlayerWhite != piece.isPlayerWhite);
+
+                // Appliquer le mouvement
+                piece.transform.position = move;
+                if (capturedPiece != null)
+                    capturedPiece.gameObject.SetActive(false); // Simule la capture
+
                 bool stillInCheck = king.IsInCheck();
-                piece.transform.position = originalPos;
-                
-                if (!stillInCheck) return false;
+
+                // Annuler le mouvement
+                piece.transform.position = originalPosition;
+                if (capturedPiece != null)
+                    capturedPiece.gameObject.SetActive(true);
+
+                if (!stillInCheck)
+                    return false; // Un coup sauve le roi → pas mat
             }
         }
+
+        return true; // Aucun coup ne sauve → mat
     }
-    return true;
-}
+
 }

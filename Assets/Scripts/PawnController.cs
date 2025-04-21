@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 public class PawnController : PieceController
 {
     public float moveSpeed = 5f; // Vitesse de déplacement
@@ -9,6 +10,8 @@ public class PawnController : PieceController
     private bool isMoving = false; // Si le pion est en train de se déplacer
     private bool isFirstMove = true; // Premier déplacement du pion
     private PieceController pieceToCapture = null; // Stocke la pièce ennemie à capturer
+    private bool hasPromoted = false;
+
 
 
     private void Update()
@@ -24,6 +27,7 @@ public class PawnController : PieceController
         {
             MovePawn();
         }
+
     }
 
     // Gère le clic souris pour déplacer le pion
@@ -42,10 +46,15 @@ public class PawnController : PieceController
                 {
                     Vector3 hitPosition = hit.collider.transform.position;
 
+                    List<Vector3> possibleMoves = GetAvailableMoves();
+                    Vector3 matchedMove = possibleMoves.FirstOrDefault(pos => Vector3.Distance(pos, hitPosition) < 0.1f);
+
+                    bool moveFound = possibleMoves.Any(pos => Vector3.Distance(pos, hitPosition) < 0.1f);
+
                     // Vérifie si la case est une case valide (1 case ou 2 cases au premier mouvement)
-                    if (IsValidMove(hitPosition))
+                    if (moveFound)
                     {
-                        targetPosition = hitPosition; // Met à jour la position cible
+                        targetPosition = matchedMove; // Met à jour la position cible
                         isMoving = true; // Active le mouvement
 
                         // Désactive le premier mouvement après le déplacement
@@ -61,135 +70,69 @@ public class PawnController : PieceController
         }
     }
 
-    public override bool IsValidMove(Vector3 hitPosition)
+
+
+    public override List<Vector3> GetAvailableMoves()
     {
-        Vector3 currentPosition = transform.position;
+        List<Vector3> moves = new List<Vector3>();
+        (int x, int z) = GetBoardIndex();
+        ChessBoardGenerator board = GameObject.FindObjectOfType<ChessBoardGenerator>();
 
-        int currentX = Mathf.RoundToInt(currentPosition.x);
-        int currentZ = Mathf.RoundToInt(currentPosition.z);
-        int targetX = Mathf.RoundToInt(hitPosition.x);
-        int targetZ = Mathf.RoundToInt(hitPosition.z);
+        int direction = isPlayerWhite ? 1 : -1;
 
-        int distanceX = Mathf.Abs(targetX - currentX);
-        int distanceZ = targetZ - currentZ; // Direction avant ou arrière en fonction du joueur
-
-        // Vérifie le déplacement standard de 1 case
-        if (distanceX == 0 && distanceZ == (isPlayerWhite ? 1 : -1))
+        // Une case devant
+        int oneStepZ = z + direction;
+        if (board.IsInBoard(x, oneStepZ))
         {
-            // Vérifie si la case est libre et le chemin est dégagé
-            if (IsPathClear(currentPosition, hitPosition))
-            {
-                isFirstMove = false;
-                return true;
-            }
-            else
-            {
-                Debug.Log("La case de destination est occupée.");
-            }
+            Vector3 pos = BoardToWorldPosition(x, oneStepZ);
+            if (!IsOccupied(pos))
+                moves.Add(pos);
         }
 
-        // Vérifie le premier mouvement (2 cases)
-        if (isFirstMove && distanceX == 0 && distanceZ == (isPlayerWhite ? 2 : -2))
+        // Deux cases si premier coup
+        int twoStepZ = z + 2 * direction;
+        if (isFirstMove && board.IsInBoard(x, twoStepZ))
         {
-            if (IsPathClear(currentPosition, hitPosition))
-            {
-                isFirstMove = false;
-                return true;
-            }
-            else
-            {
-                Debug.Log("Le chemin pour le premier déplacement est bloqué.");
-            }
+            Vector3 middle = BoardToWorldPosition(x, z + direction);
+            Vector3 target = BoardToWorldPosition(x, twoStepZ);
+            if (!IsOccupied(middle) && !IsOccupied(target))
+                moves.Add(target);
         }
 
-        // Vérification pour une capture (mouvement diagonal de 1 case)
-        if (distanceX == 1 && distanceZ == (isPlayerWhite ? 1 : -1))
+        // Capture diagonale gauche
+        int diagLeftX = x - 1;
+        if (board.IsInBoard(diagLeftX, oneStepZ))
         {
-            Collider[] colliders = Physics.OverlapSphere(hitPosition, 0.3f);
-            foreach (Collider collider in colliders)
-            {
-                PieceController piece = collider.GetComponent<PieceController>();
-                if (piece != null && piece.isPlayerWhite != this.isPlayerWhite) 
-                {
-                    pieceToCapture = piece;
-                    return true; // Permet la capture
-                }
-            }
+            Vector3 diagPos = BoardToWorldPosition(diagLeftX, oneStepZ);
+            if (IsOccupiedByEnemy(diagPos))
+                moves.Add(diagPos);
         }
 
-        //Debug.Log("Déplacement impossible");
-        return false;
-    } 
-
-    // Vérifie si le chemin entre la position actuelle et la position cible est dégagé
-    bool IsPathClear(Vector3 currentPosition, Vector3 targetPosition)
-    {
-        if (!isFirstMove)
+        // Capture diagonale droite
+        int diagRightX = x + 1;
+        if (board.IsInBoard(diagRightX, oneStepZ))
         {
-            // Vérifie si le déplacement est strictement vertical (Z change mais X reste le même)
-            if (currentPosition.x == targetPosition.x)
-            {
-                // Détermine la direction du mouvement (avant pour blanc, arrière pour noir)
-                int direction = isPlayerWhite ? 1 : -1;
-
-                // La case devant la position actuelle est une case à la même position X et Y, mais une position Z décalée de 1
-                Vector3 checkPosition = new Vector3(currentPosition.x, currentPosition.y, currentPosition.z + direction);
-
-                // Vérifie si la case de devant est occupée
-                Collider[] colliders = Physics.OverlapSphere(checkPosition, 0.1f);
-                foreach (Collider collider in colliders)
-                {
-                    PieceController piece = collider.GetComponent<PieceController>();
-                    if (piece != null)
-                    {
-                        // Si une pièce est trouvée, on retourne false (le chemin est bloqué)
-                        return false;
-                    }
-                }
-            }
-
-            // Si la case devant est libre, retourne true
-            return true;
+            Vector3 diagPos = BoardToWorldPosition(diagRightX, oneStepZ);
+            if (IsOccupiedByEnemy(diagPos))
+                moves.Add(diagPos);
         }
 
-        if (currentPosition.x == targetPosition.x)
-        {
-            int direction = isPlayerWhite ? 1 : -1;
-
-            // On vérifie chaque case entre la position actuelle et la position cible
-            for (float z = currentPosition.z + direction; z != targetPosition.z + direction; z += direction)
-            {
-                Vector3 checkPosition = new Vector3(currentPosition.x, currentPosition.y, z);
-
-                Collider[] colliders = Physics.OverlapSphere(checkPosition, 0.1f);
-                bool isOccupied = false;
-                foreach (Collider collider in colliders)
-                {
-                    PieceController piece = collider.GetComponent<PieceController>();
-
-                    // Affichage pour débogage
-                    Debug.Log("Vérification pièce : " + piece);
-                    if (piece != null)
-                    {
-                        isOccupied = true;
-                        Debug.Log("Case occupée par une pièce : " + piece.gameObject.name);
-                        break; // On sort dès qu'une pièce est détectée
-                    }
-                }
-
-                // Si la case est occupée, le chemin est bloqué
-                if (isOccupied)
-                {
-                    Debug.Log("Chemin bloqué à : " + checkPosition);
-                    return false;
-                }
-            }
-        }
-        return true; // Le chemin est libre
+        return moves;
     }
 
+    bool IsOccupied(Vector3 position)
+    {
+        return Physics.OverlapSphere(position, 0.3f).Any(c => c.GetComponent<PieceController>() != null);
+    }
 
-
+    bool IsOccupiedByEnemy(Vector3 position)
+    {
+        return Physics.OverlapSphere(position, 0.3f).Any(c =>
+            {
+                PieceController pc = c.GetComponent<PieceController>();
+                return pc != null && pc.isPlayerWhite != this.isPlayerWhite;
+            });
+    }
 
 
     // Déplace le pion vers la position cible
@@ -198,32 +141,88 @@ public class PawnController : PieceController
         Vector3 oldPosition = transform.position; // Sauvegarde la position actuelle
 
         transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
+        
 
         if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
         {
             isMoving = false;
             Debug.Log(gameObject.name + " a atteint sa destination.");
 
-            if (pieceToCapture != null)
+            Collider[] colliders = Physics.OverlapSphere(targetPosition, 0.3f);
+
+            foreach (Collider collider in colliders)
             {
-                Debug.Log("Destruction de : " + pieceToCapture.gameObject.name);
-                Destroy(pieceToCapture.gameObject); // Supprime le pion ennemi capturé
-                pieceToCapture = null;
+                PieceController piece = collider.GetComponent<PieceController>();
+                if (piece != null && piece.isPlayerWhite != this.isPlayerWhite)
+                {
+                    pieceToCapture = piece;
+                    Debug.Log("Pièce ennemie capturée : " + piece.gameObject.name);
+                    Destroy(piece.gameObject);
+                    break;
+                }
             }
 
             //ClearOldPosition(oldPosition); // Nettoie l'ancienne position après capture
+            /*if (!hasPromoted && IsAtPromotionRow())
+            {
+                if (uiObj != null){
+                GameObject uiObj = GameObject.Find("PromotionUI");
+                Debug.Log("Pion arrivé à la rangée de promotion !");
+                PromotePawn();
+                return;
+                }
+            }
+*/
 
-            DeselectPiece();
+            DeselectCase();
             GameManager.SwitchTurn();
         }
-        if ((isPlayerWhite && Mathf.RoundToInt(targetPosition.z) == 7) ||
-            (!isPlayerWhite && Mathf.RoundToInt(targetPosition.z) == 0))
-        {
-            //PromotePawn(); // affiche choix de piece pour changer
-        }
+                
 
+        }
+    private bool IsAtPromotionRow()
+    {
+        (int x, int z) = GetBoardIndex();
+        return (isPlayerWhite && z == 7) || (!isPlayerWhite && z == 0);
     }
+
+
+
+    void PromotePawn()
+    {
+        hasPromoted = true;
+        Debug.Log("Promotion déclenchée pour " + gameObject.name);
+        //GameManager.ShowPromotionUI(this);
+    }
+
     
+    public void Promote(string pieceType)
+    {
+        string path = "BrokenVector/LowpolyChessPack/Prefabs/";
+        string prefabName = "";
+
+        if (pieceType == "Queen")
+            prefabName = isPlayerWhite ? "White_Queen" : "Black_Queen";
+        else if (pieceType == "Knight")
+            prefabName = isPlayerWhite ? "White_Knight" : "Black_Knight";
+
+        GameObject prefab = Resources.Load<GameObject>(path + prefabName);
+
+        if (prefab != null)
+        {
+            GameObject newPiece = Instantiate(prefab, transform.position, Quaternion.identity);
+            PieceController pc = newPiece.GetComponent<PieceController>();
+            pc.isPlayerWhite = isPlayerWhite;
+
+            Destroy(this.gameObject);
+        }
+        else
+        {
+            Debug.LogError("Prefab introuvable pour : " + prefabName);
+        }
+    }
+
+
 
 }
 

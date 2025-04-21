@@ -1,9 +1,10 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 public class QueenController : PieceController
 {
     public float moveSpeed = 5f; 
-    //private bool isSelected = false; 
     private Vector3 targetPosition;
     private bool isMoving = false; 
     private PieceController pieceToCapture = null;
@@ -34,7 +35,7 @@ public class QueenController : PieceController
                 {
                     Vector3 hitPosition = hit.collider.transform.position;
 
-                    if (IsValidMove(hitPosition))
+                    if (GetAvailableMoves().Any(pos => Vector3.Distance(pos, hitPosition) < 0.1f))
                     {
                         targetPosition = hitPosition; 
                         isMoving = true; 
@@ -48,87 +49,50 @@ public class QueenController : PieceController
         }
     }
 
-    public override bool IsValidMove(Vector3 hitPosition)
+    public override List<Vector3> GetAvailableMoves()
     {
-        Vector3 currentPosition = transform.position;
-        int currentX = Mathf.RoundToInt(currentPosition.x);
-        int currentZ = Mathf.RoundToInt(currentPosition.z);
-        int targetX = Mathf.RoundToInt(hitPosition.x);
-        int targetZ = Mathf.RoundToInt(hitPosition.z);
+        List<Vector3> moves = new List<Vector3>();
+        ChessBoardGenerator board = GameObject.FindObjectOfType<ChessBoardGenerator>();
+        (int x, int z) = GetBoardIndex();
 
-        int dx = Mathf.Abs(targetX - currentX);
-        int dz = Mathf.Abs(targetZ - currentZ);
-
-        // Vérifier si le mouvement est en ligne droite (tour) ou en diagonale (fou)
-        if (dx == dz || currentX == targetX || currentZ == targetZ)
+        Vector2Int[] directions = new Vector2Int[]
         {
-            if (IsPathClear(currentPosition, hitPosition))
-            {
-                if (IsDestinationFree(hitPosition))
-                {
-                    return true;
-                }
-            }
-            Debug.Log("La case de destination ou une case sur le chemin est occupée.");
-            return false;
-        }
+            new Vector2Int(1, 0), new Vector2Int(-1, 0),
+            new Vector2Int(0, 1), new Vector2Int(0, -1),
+            new Vector2Int(1, 1), new Vector2Int(-1, 1),
+            new Vector2Int(1, -1), new Vector2Int(-1, -1)
+        };
 
-        //Debug.Log("Déplacement impossible.");
-        return false;
-    }
-
-    bool IsPathClear(Vector3 start, Vector3 end)
-    {
-        int startX = Mathf.RoundToInt(start.x);
-        int startZ = Mathf.RoundToInt(start.z);
-        int endX = Mathf.RoundToInt(end.x);
-        int endZ = Mathf.RoundToInt(end.z);
-
-        int dx = endX - startX;
-        int dz = endZ - startZ;
-
-        int stepX = (dx == 0) ? 0 : (dx > 0 ? 1 : -1);
-        int stepZ = (dz == 0) ? 0 : (dz > 0 ? 1 : -1);
-
-        int x = startX + stepX;
-        int z = startZ + stepZ;
-
-        while (x != endX || z != endZ)
+        foreach (var dir in directions)
         {
-            Vector3 checkPosition = new Vector3(x, start.y, z);
-            Collider[] colliders = Physics.OverlapSphere(checkPosition, 0.3f);
-
-            foreach (Collider collider in colliders)
+            int step = 1;
+            while (true)
             {
-                if (collider.GetComponent<PieceController>() != null)
+                int newX = x + dir.x * step;
+                int newZ = z + dir.y * step;
+
+                if (!board.IsInBoard(newX, newZ)) break;
+
+                Vector3 newPos = BoardToWorldPosition(newX, newZ);
+
+                if (IsOccupiedByAlly(newPos)) break;
+
+                moves.Add(newPos);
+
+                // Si une pièce ennemie est présente, on peut capturer mais on arrête là
+                Collider[] colliders = Physics.OverlapSphere(newPos, 0.3f);
+                if (colliders.Any(c =>
+                    c.GetComponent<PieceController>() is PieceController pc &&
+                    pc.isPlayerWhite != this.isPlayerWhite))
                 {
-                    return false; // Il y a une pièce qui bloque le chemin
+                    break;
                 }
-            }
 
-            x += stepX;
-            z += stepZ;
-        }
-
-        return true;
-    }
-
-    bool IsDestinationFree(Vector3 targetPosition)
-    {
-        Collider[] finalColliders = Physics.OverlapSphere(targetPosition, 0.3f);
-        foreach (Collider collider in finalColliders)
-        {
-            PieceController piece = collider.GetComponent<PieceController>();
-            if (piece != null)
-            {
-                if (piece.isPlayerWhite == this.isPlayerWhite)
-                {
-                    return false; // Impossible d'aller sur une pièce alliée
-                }
+                step++;
             }
         }
 
-        return true;
+        return moves;
     }
 
     void MoveQueen()
@@ -153,7 +117,7 @@ public class QueenController : PieceController
                 }
             }
 
-            DeselectPiece();
+            DeselectCase();
             GameManager.SwitchTurn();
         }
     }

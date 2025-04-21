@@ -30,8 +30,8 @@ public class AIControllerLevel3 : MonoBehaviour
         if (bestMove != null)
         {
             ExecuteMove(bestMove); // Exécuter un seul mouvement
-            DeselectAllPieces();
-            GameManager.SwitchTurn(); // Changer de tour après un seul mouvement
+            //DeselectAllPieces();
+            //GameManager.SwitchTurn(); // Changer de tour après un seul mouvement
         }
         else
         {
@@ -48,7 +48,7 @@ public class AIControllerLevel3 : MonoBehaviour
 
         foreach (PieceController piece in aiPieces)
         {
-            List<Vector3> validMoves = GetValidMoves(piece);
+            List<Vector3> validMoves = piece.GetAvailableMoves();
             foreach (Vector3 move in validMoves)
             {
                 // Simuler le mouvement
@@ -87,7 +87,7 @@ public class AIControllerLevel3 : MonoBehaviour
 
             foreach (PieceController piece in aiPieces)
             {
-                List<Vector3> validMoves = GetValidMoves(piece);
+                List<Vector3> validMoves = piece.GetAvailableMoves();
                 foreach (Vector3 move in validMoves)
                 {
                     PieceController capturedPiece = SimulateMove(piece, move);
@@ -112,7 +112,7 @@ public class AIControllerLevel3 : MonoBehaviour
 
             foreach (PieceController piece in opponentPieces)
             {
-                List<Vector3> validMoves = GetValidMoves(piece);
+                List<Vector3> validMoves = piece.GetAvailableMoves();
                 foreach (Vector3 move in validMoves)
                 {
                     PieceController capturedPiece = SimulateMove(piece, move);
@@ -209,39 +209,31 @@ public class AIControllerLevel3 : MonoBehaviour
         return opponentPieces;
     }
 
-    private List<Vector3> GetValidMoves(PieceController piece)
-    {
-        List<Vector3> validMoves = new List<Vector3>();
-
-        for (int x = -7; x <= 7; x++)
-        {
-            for (int z = -7; z <= 7; z++)
-            {
-                Vector3 testPosition = new Vector3(piece.transform.position.x + x, piece.transform.position.y, piece.transform.position.z + z);
-
-                if (IsTileValid(testPosition) && piece.IsValidMove(testPosition))
-                {
-                    validMoves.Add(testPosition);
-                }
-            }
-        }
-        return validMoves;
-    }
-
-    private bool IsTileValid(Vector3 position)
-    {
-        RaycastHit hit;
-        if (Physics.Raycast(position + Vector3.up * 5, Vector3.down, out hit))
-        {
-            return hit.collider.CompareTag("Tiles");
-        }
-        return false;
-    }
-
     private void ExecuteMove(Move move)
     {
+        // Capture s’il y a une pièce ennemie
+        Collider[] colliders = Physics.OverlapSphere(move.TargetPosition, 0.3f);
+        foreach (Collider col in colliders)
+        {
+            PieceController enemy = col.GetComponent<PieceController>();
+            if (enemy != null && enemy.isPlayerWhite)
+            {
+                enemy.OnCaptured(); // méthode clean
+                break;
+            }
+        }
+
+        // Déplacement immédiat (ou remplacer par animation si tu veux)
         move.Piece.transform.position = move.TargetPosition;
+
+        // Réinitialise les couleurs et la sélection
+        move.Piece.DeselectCase(); //reset couleurs et isSelected
+
+        // Passe le tour
+        GameManager.SwitchTurn(); 
+        Debug.Log($"l'IA a déplacé {move.Piece.name} vers {move.TargetPosition}");
     }
+
 
     private bool IsGameOver()
     {
@@ -266,19 +258,23 @@ public class AIControllerLevel3 : MonoBehaviour
             }
         }
 
-        piece.transform.position = targetPosition;
+        // TEMPORAIRE : on ne touche plus à transform.position
+        piece.gameObject.SetActive(false); // on "simule" en l'enlevant
+
         return capturedPiece;
     }
 
+
     private void UndoMove(PieceController piece, Vector3 targetPosition, PieceController capturedPiece)
     {
-        piece.transform.position = originalPosition;
+        piece.gameObject.SetActive(true); // On "réactive" la pièce
 
         if (capturedPiece != null)
         {
             capturedPiece.gameObject.SetActive(true);
         }
     }
+
 
 
     private class Move
@@ -294,10 +290,11 @@ public class AIControllerLevel3 : MonoBehaviour
     }
 
     private void DeselectAllPieces()
+{
+    foreach (PieceController piece in FindObjectsOfType<PieceController>())
     {
-        foreach (PieceController piece in FindObjectsOfType<PieceController>())
-        {
-            piece.isSelected = false;
-        }
+        piece.DeselectCase();
     }
+}
+
 }

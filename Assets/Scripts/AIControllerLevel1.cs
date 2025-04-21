@@ -4,7 +4,6 @@ using UnityEngine;
 public class AIControllerLevel1 : PieceController
 {
     public static AIControllerLevel1 Instance; // Singleton pour un accès facile
-    private bool isSelected = false; // Booléen pour gérer la sélection de l'IA
 
     private void Awake()
     {
@@ -42,25 +41,29 @@ public class AIControllerLevel1 : PieceController
         // Essayer une pièce au hasard après mélange
         foreach (PieceController piece in aiPieces)
         {
-            List<Vector3> validMoves = GetValidMoves(piece);
-            if (validMoves.Count > 0)
+            List<Vector3> availableMoves = piece.GetAvailableMoves();
+
+            if (availableMoves.Count > 0)
             {
-                // Sélectionne un coup au hasard parmi les coups valides
-                Vector3 moveTo = validMoves[Random.Range(0, validMoves.Count)];
-
-                if (piece.IsValidMove(moveTo))
+                Vector3 moveTo = availableMoves[Random.Range(0, availableMoves.Count)];
+                Collider[] colliders = Physics.OverlapSphere(moveTo, 0.3f);
+                foreach (Collider col in colliders)
                 {
-                    MovePiece(piece, moveTo);
-
-                    // **Désélectionner la pièce après le déplacement**
-                    DeselectPiece();
-
-                    // Fin du tour après le déplacement
-                    GameManager.SwitchTurn();
-                    return;
+                    PieceController enemy = col.GetComponent<PieceController>();
+                    if (enemy != null && enemy.isPlayerWhite)
+                    {
+                        enemy.OnCaptured();
+                        break;
+                    }
                 }
+                piece.transform.position = moveTo; // Téléportation immédiate (ou remplace par une animation si tu veux)
+                piece.DeselectCase();              // réinitialise les couleurs et sélection
+                GameManager.SwitchTurn();          // Tour suivant
+                Debug.Log($"L'IA déplace {piece.name} vers {moveTo}");
+                return;
             }
         }
+
 
         Debug.Log("L'IA ne peut pas bouger !");
     }
@@ -79,26 +82,6 @@ public class AIControllerLevel1 : PieceController
         }
 
         return pieces;
-    }
-
-    private List<Vector3> GetValidMoves(PieceController piece)
-    {
-        List<Vector3> validMoves = new List<Vector3>();
-
-        for (int x = -7; x <= 7; x++)
-        {
-            for (int z = -7; z <= 7; z++)
-            {
-                Vector3 testPosition = new Vector3(piece.transform.position.x + x, piece.transform.position.y, piece.transform.position.z + z);
-
-                if (IsTileValid(testPosition) && piece.IsValidMove(testPosition))
-                {
-                    validMoves.Add(testPosition);
-                }
-            }
-        }
-
-        return validMoves;
     }
 
     private bool IsTileValid(Vector3 position)
