@@ -14,7 +14,8 @@ public class PieceController : MonoBehaviour
 
     public virtual List<Vector3> GetAvailableMoves()
     {
-        return new List<Vector3>(); // Par défaut aucune case, a surcharger dans les autres classes
+        // Par défaut aucune case, a surcharger dans les autres classes
+        return new List<Vector3>();
     }
 
     protected bool IsOccupiedByAlly(Vector3 position)
@@ -48,6 +49,7 @@ public class PieceController : MonoBehaviour
 
     protected virtual void Awake()
     {   //prend la couleur de la piece au tout début donc blanc ou noir
+        //permet de changer la couleur des pieces selectionnées quand elles sont deselectionnées
         Couleur = GetComponent<Renderer>().material.color;
     }
 
@@ -69,22 +71,12 @@ public class PieceController : MonoBehaviour
     //change la couleur quand une piece est selectionnée
     public virtual void UpdateSelectionVisual()
     {
-        GetComponent<Renderer>().material.color = isSelected ? Color.green : Couleur;
-        //pour ajouter un prefab d'effet de halo si le temps:
-        /*if (selectionEffect != null)
-        {
-            selectionEffect.SetActive(isSelected);
-        }*/
+        GetComponent<Renderer>().material.color = isSelected ? new Color(0f, 1f, 0.9f) : Couleur;
     }
 
     // Méthode appelée lors du clic sur la piece
     public void OnPieceClicked()
-    {   
-        if (GameManager.IsPromotionActive)
-        {
-            Debug.Log("Promotion en cours, impossible de cliquer sur les pieces et de jouer");
-            return;
-        }
+    {
         // Vérifie si c'est le tour du joueur auquel appartient ce pion
         if (isPlayerWhite != GameManager.IsWhiteTurn)
         {
@@ -101,60 +93,59 @@ public class PieceController : MonoBehaviour
         }
         else
         {
-            ResetColors();  
+            ResetColors(); //reset la couleur des cases
         }
         UpdateSelectionVisual();
-        Debug.Log(isSelected ? gameObject.name + " a été sélectionné." : gameObject.name + " a été désélectionné.");
+        //Debug.Log(isSelected ? gameObject.name + " a été sélectionné." : gameObject.name + " a été désélectionné.");
     }
     
-    // Surligne les cases accessibles en vert
-public virtual void HighlightMoves()
-{
-    GameObject[] allTiles = GameObject.FindGameObjectsWithTag("Tiles");
-    List<Vector3> availableMoves = GetAvailableMoves();
-
-    foreach (GameObject tile in allTiles)
+        // Surligne les cases accessibles en vert
+    public virtual void HighlightMoves()
     {
-        Vector3 tilePos = tile.transform.position;
+        GameObject[] allTiles = GameObject.FindGameObjectsWithTag("Tiles");
+        List<Vector3> availableMoves = GetAvailableMoves();
 
-        foreach (Vector3 move in availableMoves)
+        foreach (GameObject tile in allTiles)
         {
-            if (Vector3.Distance(tilePos, move) < 0.1f)
-            {
-                Renderer rend = tile.GetComponent<Renderer>();
-                if (rend != null)
-                    rend.material.color = Color.green;
+            Vector3 tilePos = tile.transform.position;
 
-                break; // On arrête dès qu'on trouve un match
+            foreach (Vector3 move in availableMoves)
+            {
+                if (Vector3.Distance(tilePos, move) < 0.1f)
+                {
+                    Renderer rend = tile.GetComponent<Renderer>();
+                    if (rend != null) rend.material.color = new Color(0f, 1.0f, 0.9f);;
+
+                    break;
+                }
             }
         }
     }
-}
 
 
-//Réinitialise les couleurs des cases
-public virtual void ResetColors()
-{
-    GameObject[] allTiles = GameObject.FindGameObjectsWithTag("Tiles");
-
-    foreach (GameObject tile in allTiles)
+    //Réinitialise les couleurs des cases
+    public virtual void ResetColors()
     {
-        Renderer rend = tile.GetComponent<Renderer>();
-        if (rend != null)
+        GameObject[] allTiles = GameObject.FindGameObjectsWithTag("Tiles");
+
+        foreach (GameObject tile in allTiles)
         {
-            bool isWhite = (Mathf.RoundToInt(tile.transform.position.x) + Mathf.RoundToInt(tile.transform.position.z)) % 2 == 0;
-            rend.material.color = isWhite ? Color.white : Color.black;
+            Renderer rend = tile.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                bool isWhite = (Mathf.RoundToInt(tile.transform.position.x) + Mathf.RoundToInt(tile.transform.position.z)) % 2 == 0;
+                rend.material.color = isWhite ? Color.white : Color.black;
+            }
         }
     }
-}
 
-// Désélectionne la pièce + réinitialise les couleurs
-public virtual void DeselectCase()
-{
-    isSelected = false;
-    UpdateSelectionVisual(); 
-    ResetColors();           
-}
+    // Désélectionne la pièce + réinitialise les couleurs
+    public virtual void DeselectCase()
+    {
+        isSelected = false;
+        UpdateSelectionVisual(); 
+        ResetColors();           
+    }
 
 
 }

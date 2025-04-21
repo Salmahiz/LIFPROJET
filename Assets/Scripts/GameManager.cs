@@ -7,20 +7,13 @@ using UnityEngine.SceneManagement;
 public class GameManager : MonoBehaviour
 {
     public static bool IsWhiteTurn = true; // Tour des Blancs commence
-    public static bool IsWhiteInCheck = false;
-    public static bool IsBlackInCheck = false;
     public Camera mainCamera; // La caméra principale
 
     //permet de s'assurer qu'une piece soit deselectionnée avant de selectionner une autre
     public static PieceController selectedPiece = null;
-    public float rotationSpeed = 2f; // Vitesse de rotation
     public float positionSpeed = 2f; // Vitesse de déplacement
     public static bool IsPvPMode = false; // Par défaut, IA activée
     public static int level = 0; // par defaut, le level de l'ia est 1
-    public static bool IsPromotionActive = false;
-
-    
-
 
 
     private Vector3 whitePosition = new Vector3(-0.5f, 8, -5.5f);
@@ -28,17 +21,6 @@ public class GameManager : MonoBehaviour
     private Vector3 whiteRotation = new Vector3(60, 0, 0);
     private Vector3 blackRotation = new Vector3(60, 180, 0);
     public static bool isGameOver = false;
-
-    public GameObject promotionUI;
-
-    public static GameManager instance;
-
-    /*private void Awake()
-    {
-        instance = this;
-        promotionUI.SetActive(false); // Cache au début
-    }*/
-
 
     public void DeclareCheckmate(bool whiteWon)
     {
@@ -59,6 +41,9 @@ public class GameManager : MonoBehaviour
             Debug.Log("Test manuel : retour au menu");
             SceneManager.LoadScene("Main Menu");
         }
+        //if(roi est en checkmate){
+        //  SceneManager.LoadScene("Main Menu");
+        //}
     }
 
 
@@ -66,7 +51,7 @@ public class GameManager : MonoBehaviour
     {
         IsWhiteTurn = !IsWhiteTurn;
         // Nouvelle vérification d'échec et mat juste après changement de tour
-        Debug.Log("Test d’échec et mat...");
+        //Debug.Log("Test d’échec et mat...");
         if (KingController.IsCheckmate(IsWhiteTurn))
         {
             Debug.Log("ÉCHEC ET MAT détecté !");
@@ -183,7 +168,7 @@ public class GameManager : MonoBehaviour
         if (king == null) return false;
 
         bool isInCheck = king.IsInCheck();
-        king.SetInCheckVisual(isInCheck);  //visuel
+        king.SetInCheckVisual(isInCheck);  //le roi devient rouge
 
         return isInCheck;
     }

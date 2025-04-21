@@ -22,18 +22,18 @@ public class AIControllerLevel3 : MonoBehaviour
 
    public void PlayAITurn()
     {
-        Debug.Log("IA Level 3: PlayAITurn lancé");
+        Debug.Log("IA Level 3: PlayAITurn est lancé");
 
-        if (GameManager.IsWhiteTurn) return; // L'IA joue seulement avec les noirs
-
-        DeselectAllPieces(); // Désélectionner toutes les pièces avant de jouer
-
-        Move bestMove = FindBestMove(); // Trouver le meilleur coup
+        // L'IA joue seulement avec les noirs
+        if (GameManager.IsWhiteTurn) return;
+        // Désélectionner toutes les pièces avant de jouer
+        DeselectAllPieces();
+        // Trouver le meilleur coup
+        Move bestMove = FindBestMove();
         if (bestMove != null)
         {
-            ExecuteMove(bestMove); // Exécuter un seul mouvement
-            //DeselectAllPieces();
-            //GameManager.SwitchTurn(); // Changer de tour après un seul mouvement
+            // Exécute un seul mouvement
+            ExecuteMove(bestMove);
         }
         else
         {
@@ -45,34 +45,40 @@ public class AIControllerLevel3 : MonoBehaviour
     private Move FindBestMove()
     {
         List<PieceController> aiPieces = GetAIPieces();
-        Move bestMove = null;
+        List<Move> bestMoves = new List<Move>();
         float bestValue = float.NegativeInfinity;
 
         foreach (PieceController piece in aiPieces)
         {
             List<Vector3> validMoves = piece.GetAvailableMoves();
+
             foreach (Vector3 move in validMoves)
             {
-                // Simuler le mouvement
                 PieceController capturedPiece = SimulateMove(piece, move);
-
-                // Calculer la valeur du mouvement avec Minimax
                 float moveValue = Minimax(maxDepth, float.NegativeInfinity, float.PositiveInfinity, false);
-
-                // Annuler le mouvement simulé
                 UndoMove(piece, move, capturedPiece);
 
-                // Mettre à jour le meilleur mouvement
-                if (moveValue > bestValue)
+                if (Mathf.Approximately(moveValue, bestValue))
+                {
+                    bestMoves.Add(new Move(piece, move)); // plusieurs coups aussi bons
+                }
+                else if (moveValue > bestValue)
                 {
                     bestValue = moveValue;
-                    bestMove = new Move(piece, move);
+                    bestMoves.Clear();
+                    bestMoves.Add(new Move(piece, move));
                 }
             }
         }
 
-        return bestMove; // L'IA ne doit retourner qu'un seul mouvement
+        if (bestMoves.Count > 0)
+        {
+            return bestMoves[Random.Range(0, bestMoves.Count)]; //choisir un coup au hasard parmi les meilleurs
+        }
+
+        return null;
     }
+
 
 
     private float Minimax(int depth, float alpha, float beta, bool isMaximizingPlayer)
@@ -133,6 +139,8 @@ public class AIControllerLevel3 : MonoBehaviour
             return minEval;
         }
     }
+
+
 
     private float EvaluateBoard()
     {

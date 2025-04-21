@@ -53,7 +53,7 @@ public class KnightController : PieceController
                     }
                     else
                     {
-                        Debug.Log("Déplacement invalide.");
+                        //Debug.Log("Déplacement invalide.");
                     }
                 }
             }
@@ -101,7 +101,7 @@ public class KnightController : PieceController
         if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
         {
             isMoving = false;
-            Debug.Log(gameObject.name + " a atteint sa destination.");
+            //Debug.Log(gameObject.name + " a atteint sa destination.");
 
             // Vérifie s'il y a une pièce ennemie à capturer
             Collider[] colliders = Physics.OverlapSphere(targetPosition, 0.3f);
@@ -111,7 +111,7 @@ public class KnightController : PieceController
                 if (piece != null && piece.isPlayerWhite != this.isPlayerWhite)
                 {
                     pieceToCapture = piece;
-                    Debug.Log("Pièce ennemie détectée pour capture : " + piece.gameObject.name);
+                    //Debug.Log("Pièce ennemie détectée pour capture : " + piece.gameObject.name);
                     Destroy(piece.gameObject); // Capture la pièce
                     break;
                 }

@@ -63,7 +63,7 @@ public class PawnController : PieceController
                     }
                     else
                     {
-                        Debug.Log("Déplacement invalide.");
+                        //Debug.Log("Déplacement invalide.");
                     }
                 }
             }
@@ -146,7 +146,7 @@ public class PawnController : PieceController
         if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
         {
             isMoving = false;
-            Debug.Log(gameObject.name + " a atteint sa destination.");
+            //Debug.Log(gameObject.name + " a atteint sa destination.");
 
             Collider[] colliders = Physics.OverlapSphere(targetPosition, 0.3f);
 
@@ -156,73 +156,16 @@ public class PawnController : PieceController
                 if (piece != null && piece.isPlayerWhite != this.isPlayerWhite)
                 {
                     pieceToCapture = piece;
-                    Debug.Log("Pièce ennemie capturée : " + piece.gameObject.name);
+                    //Debug.Log("Pièce ennemie capturée : " + piece.gameObject.name);
                     Destroy(piece.gameObject);
                     break;
                 }
             }
 
-            //ClearOldPosition(oldPosition); // Nettoie l'ancienne position après capture
-            /*if (!hasPromoted && IsAtPromotionRow())
-            {
-                if (uiObj != null){
-                GameObject uiObj = GameObject.Find("PromotionUI");
-                Debug.Log("Pion arrivé à la rangée de promotion !");
-                PromotePawn();
-                return;
-                }
-            }
-*/
-
             DeselectCase();
             GameManager.SwitchTurn();
         }
-                
-
-        }
-    private bool IsAtPromotionRow()
-    {
-        (int x, int z) = GetBoardIndex();
-        return (isPlayerWhite && z == 7) || (!isPlayerWhite && z == 0);
     }
-
-
-
-    void PromotePawn()
-    {
-        hasPromoted = true;
-        Debug.Log("Promotion déclenchée pour " + gameObject.name);
-        //GameManager.ShowPromotionUI(this);
-    }
-
-    
-    public void Promote(string pieceType)
-    {
-        string path = "BrokenVector/LowpolyChessPack/Prefabs/";
-        string prefabName = "";
-
-        if (pieceType == "Queen")
-            prefabName = isPlayerWhite ? "White_Queen" : "Black_Queen";
-        else if (pieceType == "Knight")
-            prefabName = isPlayerWhite ? "White_Knight" : "Black_Knight";
-
-        GameObject prefab = Resources.Load<GameObject>(path + prefabName);
-
-        if (prefab != null)
-        {
-            GameObject newPiece = Instantiate(prefab, transform.position, Quaternion.identity);
-            PieceController pc = newPiece.GetComponent<PieceController>();
-            pc.isPlayerWhite = isPlayerWhite;
-
-            Destroy(this.gameObject);
-        }
-        else
-        {
-            Debug.LogError("Prefab introuvable pour : " + prefabName);
-        }
-    }
-
-
 
 }
 

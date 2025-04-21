@@ -102,7 +102,7 @@ public class QueenController : PieceController
         if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
         {
             isMoving = false;
-            Debug.Log(gameObject.name + " a atteint sa destination.");
+            //Debug.Log(gameObject.name + " a atteint sa destination.");
 
             Collider[] colliders = Physics.OverlapSphere(targetPosition, 0.3f);
             foreach (Collider collider in colliders)
@@ -111,7 +111,7 @@ public class QueenController : PieceController
                 if (piece != null && piece.isPlayerWhite != this.isPlayerWhite)
                 {
                     pieceToCapture = piece;
-                    Debug.Log("Pièce ennemie capturée : " + piece.gameObject.name);
+                    //Debug.Log("Pièce ennemie capturée : " + piece.gameObject.name);
                     Destroy(piece.gameObject);
                     break;
                 }

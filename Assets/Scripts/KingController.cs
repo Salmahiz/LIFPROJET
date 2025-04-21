@@ -5,7 +5,6 @@ using System.Linq;
 public class KingController : PieceController
 {
     public float moveSpeed = 5f; // Vitesse de déplacement
-    //private bool isSelected = false; // État de sélection
     private Vector3 targetPosition; // Position de destination
     private bool isMoving = false; // Si le roi est en train de se déplacer
 
@@ -22,17 +21,13 @@ public class KingController : PieceController
         {   
             MoveKing();
         }
-        
 
         // Vérifie si le roi peut encore bouger, sinon termine la partie
         if (isPlayerWhite == GameManager.IsWhiteTurn && IsCheckmate(isPlayerWhite))
         {
-            //EndGame("Perdu ! Le roi ne peut plus se déplacer.");
             GameManager.FindFirstObjectByType<GameManager>()?.DeclareCheckmate(!isPlayerWhite);
 
         }
-
-        
     }
 
     // Gère le clic souris pour déplacer le roi
@@ -96,10 +91,7 @@ public class KingController : PieceController
                 bool isBlocked = colliders.Any(c =>
                 {
                     PieceController pc = c.GetComponent<PieceController>();
-                    return pc != null && (
-                        pc.isPlayerWhite == this.isPlayerWhite || // allié
-                        pc is KingController                    // autre roi
-                    );
+                    return pc != null && (pc.isPlayerWhite == this.isPlayerWhite || pc is KingController);
                 });
 
                 if (!isBlocked)
@@ -145,25 +137,6 @@ public class KingController : PieceController
             DeselectCase();
             GameManager.SwitchTurn();
         }
-    }
-
-
-    // Méthode pour terminer la partie en cas de défaite
-    void EndGame(string message)
-    {
-        Debug.Log(message);
-        // Ajouter ici la logique pour afficher un message de fin de partie et arrêter le jeu
-        Time.timeScale = 0f; // Stop le jeu
-        //afficher un message et une option "Rejouer"
-    }
-
-
-
-    //override de la fonction dans pieceController
-    public override void OnCaptured()
-    {
-        base.OnCaptured(); // detruit la piece quand meme
-        EndGame("Perdu ! Le roi a été capturé !");
     }
 
     public bool IsInCheck()

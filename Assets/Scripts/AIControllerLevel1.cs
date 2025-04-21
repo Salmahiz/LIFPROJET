@@ -56,15 +56,16 @@ public class AIControllerLevel1 : PieceController
                         break;
                     }
                 }
-                piece.transform.position = moveTo; // Téléportation immédiate (ou remplace par une animation si tu veux)
-                piece.DeselectCase();              // réinitialise les couleurs et sélection
-                GameManager.SwitchTurn();          // Tour suivant
-                Debug.Log($"L'IA déplace {piece.name} vers {moveTo}");
+                // Téléportation immédiate (ou remplace par une animation si tu veux)
+                piece.transform.position = moveTo;
+                // réinitialise les couleurs et sélection
+                piece.DeselectCase();
+                // Tour suivant
+                GameManager.SwitchTurn();
+                Debug.Log($"L'IA déplace la pièce {piece.name} vers {moveTo}");
                 return;
             }
         }
-
-
         Debug.Log("L'IA ne peut pas bouger !");
     }
 
@@ -84,39 +85,4 @@ public class AIControllerLevel1 : PieceController
         return pieces;
     }
 
-    private bool IsTileValid(Vector3 position)
-    {
-        RaycastHit hit;
-        if (Physics.Raycast(position + Vector3.up * 5, Vector3.down, out hit))
-        {
-            return hit.collider.CompareTag("Tiles");
-        }
-        return false;
-    }
-
-    private void MovePiece(PieceController piece, Vector3 targetPosition)
-    {
-        piece.transform.position = targetPosition;
-        isSelected = false; // Désélectionner la pièce après le déplacement
-        Debug.Log("L'IA a déplacé " + piece.gameObject.name + " vers " + targetPosition);
-
-        // Vérifier s'il y a une pièce ennemie à capturer
-        Collider[] colliders = Physics.OverlapSphere(targetPosition, 0.3f);
-        foreach (Collider collider in colliders)
-        {
-            PieceController otherPiece = collider.GetComponent<PieceController>();
-            if (otherPiece != null && otherPiece.isPlayerWhite)
-            {
-                Debug.Log("L'IA capture : " + otherPiece.gameObject.name);
-                Destroy(otherPiece.gameObject);
-                break;
-            }
-        }
-    }
-
-    public void DeselectPiece()
-    {
-        isSelected = false;
-        Debug.Log("L'IA a désélectionné sa pièce.");
-    }
 }
