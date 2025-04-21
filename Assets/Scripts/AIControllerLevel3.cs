@@ -22,6 +22,8 @@ public class AIControllerLevel3 : MonoBehaviour
 
    public void PlayAITurn()
     {
+        Debug.Log("IA Level 3: PlayAITurn lancé");
+
         if (GameManager.IsWhiteTurn) return; // L'IA joue seulement avec les noirs
 
         DeselectAllPieces(); // Désélectionner toutes les pièces avant de jouer
@@ -290,11 +292,15 @@ public class AIControllerLevel3 : MonoBehaviour
     }
 
     private void DeselectAllPieces()
-{
-    foreach (PieceController piece in FindObjectsOfType<PieceController>())
     {
-        piece.DeselectCase();
+        foreach (PieceController piece in FindObjectsOfType<PieceController>())
+        {
+            if (piece.GetComponent<Renderer>() != null) //On vérifie qu'il y a un Renderer
+            {
+                piece.DeselectCase();
+            }
+        }
     }
-}
+
 
 }
