@@ -11,7 +11,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Main Menu.unity
     guid: 280682cdf155249189bf7dec9468f366
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/ChessBoard1.unity
     guid: f3c12a2741e2c46b1abe0ab5bbbccbf3
   - enabled: 1

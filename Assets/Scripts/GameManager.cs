@@ -201,12 +201,5 @@ public IEnumerator ReturnToMenuAfterDelay(float delay)
         Debug.LogError($"La scène '{menuScene}' n'existe pas dans les paramètres de build !");
     }
 }
-public void SetPlayerNameAndLoadScene(string username)
-{
-    Debug.Log("Nom reçu depuis JavaScript : " + username);
-    GameData.playerName = username;
-    UnityEngine.SceneManagement.SceneManager.LoadScene("AI Menu");
-}
-
 
 }

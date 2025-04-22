@@ -81,23 +81,16 @@ public class AIControllerLevel3 : MonoBehaviour
 
 
 
-    private float Minimax(int depth, float alpha, float beta, bool isMaximizingPlayer)
-    {
-        if (depth == 0 || IsGameOver())
-        {
-            return EvaluateBoard();
-        }
+    private float Minimax(int depth, float alpha, float beta, bool isMaximizingPlayer){
+        if (depth == 0 || IsGameOver()) return EvaluateBoard();
 
-        if (isMaximizingPlayer)
-        {
+        if (isMaximizingPlayer){
             float maxEval = float.NegativeInfinity;
             List<PieceController> aiPieces = GetAIPieces();
 
-            foreach (PieceController piece in aiPieces)
-            {
+            foreach (PieceController piece in aiPieces){
                 List<Vector3> validMoves = piece.GetAvailableMoves();
-                foreach (Vector3 move in validMoves)
-                {
+                foreach (Vector3 move in validMoves){
                     PieceController capturedPiece = SimulateMove(piece, move);
                     float eval = Minimax(depth - 1, alpha, beta, false);
                     UndoMove(piece, move, capturedPiece);
@@ -105,24 +98,18 @@ public class AIControllerLevel3 : MonoBehaviour
                     maxEval = Mathf.Max(maxEval, eval);
                     alpha = Mathf.Max(alpha, eval);
 
-                    if (beta <= alpha)
-                    {
-                        break; // Élagage alpha-bêta
-                    }
+                    if (beta <= alpha) break; // Élagage alpha-bêta
                 }
             }
             return maxEval;
         }
-        else
-        {
+        else{
             float minEval = float.PositiveInfinity;
             List<PieceController> opponentPieces = GetOpponentPieces();
 
-            foreach (PieceController piece in opponentPieces)
-            {
+            foreach (PieceController piece in opponentPieces){
                 List<Vector3> validMoves = piece.GetAvailableMoves();
-                foreach (Vector3 move in validMoves)
-                {
+                foreach (Vector3 move in validMoves){
                     PieceController capturedPiece = SimulateMove(piece, move);
                     float eval = Minimax(depth - 1, alpha, beta, true);
                     UndoMove(piece, move, capturedPiece);
@@ -130,10 +117,7 @@ public class AIControllerLevel3 : MonoBehaviour
                     minEval = Mathf.Min(minEval, eval);
                     beta = Mathf.Min(beta, eval);
 
-                    if (beta <= alpha)
-                    {
-                        break; // Élagage alpha-bêta
-                    }
+                    if (beta <= alpha) break; // Élagage alpha-bêta
                 }
             }
             return minEval;
