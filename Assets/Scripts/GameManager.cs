@@ -173,10 +173,40 @@ public class GameManager : MonoBehaviour
         return isInCheck;
     }
 
-    public IEnumerator ReturnToMenuAfterDelay(float delay)
+    private bool SceneExists(string sceneName)
+{
+    for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
     {
-        yield return new WaitForSeconds(delay);
-        SceneManager.LoadScene("Main Menu");
+        string path = SceneUtility.GetScenePathByBuildIndex(i);
+        string name = System.IO.Path.GetFileNameWithoutExtension(path);
+        if (name == sceneName)
+        {
+            return true;
+        }
     }
+    return false;
+}
+
+public IEnumerator ReturnToMenuAfterDelay(float delay)
+{
+    yield return new WaitForSeconds(delay);
+    
+    string menuScene = "Main Menu";
+    if (SceneExists(menuScene))
+    {
+        SceneManager.LoadScene(menuScene);
+    }
+    else
+    {
+        Debug.LogError($"La scène '{menuScene}' n'existe pas dans les paramètres de build !");
+    }
+}
+public void SetPlayerNameAndLoadScene(string username)
+{
+    Debug.Log("Nom reçu depuis JavaScript : " + username);
+    GameData.playerName = username;
+    UnityEngine.SceneManagement.SceneManager.LoadScene("AI Menu");
+}
+
 
 }
